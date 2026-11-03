@@ -12,7 +12,7 @@ App para que quienes hicieron un curso o diplomado de Educación Continua descar
 
 ## Verificación
 
-Se generaron los 1.144 certificados desde los datos extraídos y se compararon con los PDF de Hermes (`C:\Users\Juan Manuel\Downloads\Certificados*.pdf`): resultado en la sección siguiente.
+2026-11-03: se generaron los 1.144 certificados desde los datos extraídos y se compararon con los PDF de Hermes (`C:\Users\Juan Manuel\Downloads\Certificados*.pdf`): mismas letras y tamaños en todas las páginas, cada letra a menos de 0,005 pt de su sitio y 0,006 % de píxeles distintos en promedio (máximo 0,01 %). Dos medidas propias de esta plantilla salieron de esa comparación: el párrafo de realización se justifica a 441,069 pt (el de regalías a 440) y el pie baja a 9,5 pt desde 440,01 pt, sin tolerancia.
 
 ## Agregar un curso o diplomado
 

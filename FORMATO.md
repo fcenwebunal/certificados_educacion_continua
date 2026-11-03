@@ -37,14 +37,14 @@ Carta, 612 × 792 pt. Coordenadas en puntos desde la esquina superior izquierda;
 | CON IDENTIFICACIÓN | x 85, base 343,53 | 11 pt |
 | Participación | x 85, base 375,42 | 11 pt |
 | Programa (`programa`) | x 85, base 401,5 (una línea) | 14 pt |
-| Realización | x 85, base 433,86, interlínea 16,295 | 11 pt, justificado |
+| Realización | x 85, base 433,86, interlínea 16,295 | 11 pt; corta en 440 pt pero se justifica a 441,069 pt |
 | DADO EN… | x 85, base 482,74 | 11 pt |
 | Regalías | x **86**, base 515,74, interlínea 16,295, tres líneas | 11 pt, justificado (también la última línea) |
 | Firma | x 85, y 567 | 180 × 50 pt |
 | Firmante | x 85, bases 624,7 · 636,3 · 647,9 | 8 pt |
 | Pie | centrado en x 305, base 761 | 10 pt o 9,5 pt |
 
-Reglas que dependen de los datos (iguales al CIM): un nombre de dos líneas sube la primera a 285,5 y baja todo lo de abajo 12 pt, salvo el pie (38 de los 1.144); un renglón de más en el programa, la realización o las regalías baja lo de abajo una interlínea (no pasa en estos datos; la interlínea del programa, 16,8, es la del CIM); el pie baja de 0,5 en 0,5 hasta caber en 440 pt.
+Reglas que dependen de los datos (iguales al CIM): un nombre de dos líneas sube la primera a 285,5 y baja todo lo de abajo 12 pt, salvo el pie (38 de los 1.144); un renglón de más en el programa, la realización o las regalías baja lo de abajo una interlínea (no pasa en estos datos; la interlínea del programa, 16,8, es la del CIM); el pie baja de 0,5 en 0,5 hasta caber en 440 pt, sin tolerancia (440,00 cabe a 10 pt; 440,01 ya va a 9,5).
 
 ## Datos
 
