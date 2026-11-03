@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certificados de Educación Continua FCEN</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    if (window.self !== window.top) document.documentElement.classList.add('is-embedded');
+  </script>
+</head>
+
+<body>
+
+  <main class="cert">
+
+    <h1 class="cert-title">Descarga tu certificado</h1>
+
+    <span id="cursoLabel" class="field-label">Curso o diplomado</span>
+    <div class="picker">
+      <div
+        id="cursoTrigger"
+        class="picker-trigger"
+        role="combobox"
+        tabindex="-1"
+        aria-labelledby="cursoLabel"
+        aria-haspopup="listbox"
+        aria-controls="cursoList"
+        aria-expanded="false"
+        aria-disabled="true"
+      >
+        <span id="cursoValue" class="picker-value">
+          <span class="picker-placeholder">Cargando cursos…</span>
+        </span>
+        <svg class="picker-chevron" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <ul id="cursoList" class="picker-list" role="listbox" aria-labelledby="cursoLabel" hidden></ul>
+    </div>
+
+    <div id="docGroup">
+      <label for="documentoInput" class="field-label">Número de documento</label>
+      <input
+        id="documentoInput"
+        type="text"
+        class="field"
+        placeholder="Ej.: 1004321987"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="actions">
+      <button id="btnBuscar" class="button" type="button">Buscar y descargar</button>
+      <button
+        id="btnAyuda"
+        type="button"
+        class="help-toggle"
+        aria-expanded="false"
+        aria-controls="ayuda"
+        aria-label="Ayuda"
+        title="Ayuda"
+      >?</button>
+    </div>
+
+    <div id="msgGenerando" class="message message--loading hidden">
+      <span class="spinner"></span>Generando certificado…
+    </div>
+
+    <div id="msgNoEncontrado" class="message hidden">
+      <p class="alert alert--error">
+        No se encontró registro con ese documento en el curso seleccionado.
+      </p>
+    </div>
+
+    <div id="msgInactivo" class="message hidden">
+      <p class="alert alert--warning">
+        Tu certificado no está habilitado. Si cursaste este programa, escríbenos a
+        <a class="contact-email" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=educacioncontinua_fcen@unal.edu.co" target="_blank" rel="noopener">educacioncontinua_fcen@unal.edu.co</a>
+      </p>
+    </div>
+
+    <div id="msgSinCurso" class="message hidden">
+      <p class="alert alert--warning">Por favor selecciona un curso antes de buscar.</p>
+    </div>
+
+    <div id="msgError" class="message hidden">
+      <p class="alert alert--error">Ocurrió un error al generar el certificado. Intenta de nuevo.</p>
+    </div>
+
+    <div id="msgCarga" class="message hidden">
+      <p class="alert alert--error">No se pudieron cargar los cursos. Recarga la página para intentarlo de nuevo.</p>
+    </div>
+
+    <section id="ayuda" class="help" aria-label="Ayuda" hidden>
+      <ol class="help-steps">
+        <li>Elige el curso o diplomado que realizaste.</li>
+        <li>Escribe tu número de documento, sin puntos ni espacios.</li>
+        <li>Presiona <strong>Buscar y descargar</strong> y el certificado se descarga en PDF.</li>
+      </ol>
+      <p class="help-contact">
+        ¿No aparece tu certificado o tiene un dato errado? Escríbenos a
+        <a class="contact-email" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=educacioncontinua_fcen@unal.edu.co" target="_blank" rel="noopener">educacioncontinua_fcen@unal.edu.co</a>
+      </p>
+    </section>
+
+  </main>
+
+  <script>
+    // `cursos` tab of the Sheet certificados_educacion_continua: one row per course or diploma.
+    const COURSES_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQkS6z1vg0mkI-fGp1OtoI_MbrmTtw91bZvyxhfOMHA5_B2A8AzGMVNPUGtGjdXsg0YV8D6z2sReYzb/pub?gid=779198221&single=true&output=csv';
+    const ICON = { src: 'iconos/evento.png', bg: '#0B2E59' };
+
+    const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+      'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+    function parseQuotedCSV(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let quoted = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (quoted) {
+          if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+          else if (ch === '"') quoted = false;
+          else cell += ch;
+        } else if (ch === '"') {
+          quoted = true;
+        } else if (ch === ',') {
+          row.push(cell); cell = '';
+        } else if (ch === '\n' || ch === '\r') {
+          if (ch === '\r' && text[i + 1] === '\n') i++;
+          row.push(cell); rows.push(row);
+          row = []; cell = '';
+        } else {
+          cell += ch;
+        }
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      return rows;
+    }
+
+    function normKey(text) {
+      return (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    }
+
+    // The last date of "REALIZADO DEL 09 DE JUNIO AL 24 DE JULIO DE 2026 ..." → { label: 'Julio de 2026', order }
+    function courseMonth(realizado) {
+      const text  = normKey(realizado);
+      const dates = [...text.matchAll(new RegExp('\\b(\\d{1,2}) de (' + MONTHS.join('|') + ')(?: de (\\d{4}))?', 'g'))];
+      const year  = text.match(/\b(\d{4})\b/);
+      if (!dates.length || !year) return null;
+      const [, day, month, ownYear] = dates[dates.length - 1];
+      const y = ownYear || year[1];
+      return {
+        label: month[0].toUpperCase() + month.slice(1) + ' de ' + y,
+        order: Number(y) * 10000 + (MONTHS.indexOf(month) + 1) * 100 + Number(day),
+      };
+    }
+
+    // ── Course selector (select-only combobox, WAI-ARIA pattern)
+    const picker = {
+      trigger: document.getElementById('cursoTrigger'),
+      value:   document.getElementById('cursoValue'),
+      list:    document.getElementById('cursoList'),
+      courses: [],
+      active:  -1,
+      selected: -1,
+      typed:   '',
+      typedAt: 0,
+    };
+
+    function courseBlock(course) {
+      const block = document.createDocumentFragment();
+
+      const icon = document.createElement('span');
+      icon.className = 'event-icon';
+      icon.style.backgroundColor = ICON.bg;
+      const img = document.createElement('img');
+      img.src = ICON.src;
+      img.alt = '';
+      icon.appendChild(img);
+
+      const text = document.createElement('span');
+      text.className = 'event-text';
+      const name = document.createElement('span');
+      name.className = 'event-name';
+      name.textContent = course.label;
+      text.appendChild(name);
+      const date = document.createElement('span');
+      date.className = 'event-date';
+      date.textContent = [course.tipo, course.month && course.month.label].filter(Boolean).join(' · ');
+      if (date.textContent) text.appendChild(date);
+
+      block.append(icon, text);
+      return block;
+    }
+
+    function renderOptions() {
+      picker.list.textContent = '';
+      picker.courses.forEach((course, i) => {
+        const li = document.createElement('li');
+        li.id = 'curso-opcion-' + i;
+        li.className = 'picker-option';
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', 'false');
+        li.appendChild(courseBlock(course));
+        li.addEventListener('click', () => selectCourse(i));
+        li.addEventListener('mousemove', () => { if (picker.active !== i) setActive(i, false); });
+        picker.list.appendChild(li);
+      });
+    }
+
+    function setPlaceholder(text) {
+      picker.value.textContent = '';
+      const span = document.createElement('span');
+      span.className = 'picker-placeholder';
+      span.textContent = text;
+      picker.value.appendChild(span);
+    }
+
+    function isOpen() {
+      return !picker.list.hidden;
+    }
+
+    // The list lives inside the iframe: it opens upward when there is more room above, and scrolls inside.
+    function fitList() {
+      const rect  = picker.trigger.getBoundingClientRect();
+      const gap   = 12;
+      const below = window.innerHeight - rect.bottom - gap;
+      const above = rect.top - gap;
+      const up    = below < 260 && above > below;
+      picker.list.classList.toggle('is-up', up);
+      picker.list.style.maxHeight = Math.max(160, up ? above : below) + 'px';
+    }
+
+    function openList() {
+      if (isOpen() || picker.trigger.hasAttribute('aria-disabled')) return;
+      picker.list.hidden = false;
+      picker.trigger.setAttribute('aria-expanded', 'true');
+      fitList();
+      setActive(picker.selected >= 0 ? picker.selected : 0);
+    }
+
+    function closeList() {
+      if (!isOpen()) return;
+      picker.list.hidden = true;
+      picker.trigger.setAttribute('aria-expanded', 'false');
+      picker.trigger.removeAttribute('aria-activedescendant');
+    }
+
+    function setActive(i, scroll = true) {
+      const options = picker.list.children;
+      if (!options.length) return;
+      i = Math.max(0, Math.min(options.length - 1, i));
+      if (options[picker.active]) options[picker.active].classList.remove('is-active');
+      picker.active = i;
+      options[i].classList.add('is-active');
+      picker.trigger.setAttribute('aria-activedescendant', options[i].id);
+      if (scroll) options[i].scrollIntoView({ block: 'nearest' });
+    }
+
+    function selectCourse(i) {
+      const options = picker.list.children;
+      if (options[picker.selected]) options[picker.selected].setAttribute('aria-selected', 'false');
+      picker.selected = i;
+      options[i].setAttribute('aria-selected', 'true');
+      picker.value.textContent = '';
+      picker.value.appendChild(courseBlock(picker.courses[i]));
+      picker.trigger.classList.remove('is-invalid');
+      document.getElementById('msgSinCurso').classList.add('hidden');
+      closeList();
+      const input = document.getElementById('documentoInput');
+      if (input.value.trim()) picker.trigger.focus();
+      else input.focus();
+    }
+
+    function typeAhead(char) {
+      const now = Date.now();
+      picker.typed = (now - picker.typedAt > 700 ? '' : picker.typed) + normKey(char);
+      picker.typedAt = now;
+      const start = picker.typed.length === 1 ? picker.active + 1 : picker.active;
+      const n = picker.courses.length;
+      for (let k = 0; k < n; k++) {
+        const i = (start + k) % n;
+        if (normKey(picker.courses[i].label).startsWith(picker.typed)) {
+          setActive(i);
+          return;
+        }
+      }
+    }
+
+    picker.trigger.addEventListener('click', () => (isOpen() ? closeList() : openList()));
+
+    picker.trigger.addEventListener('keydown', e => {
+      const open = isOpen();
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          if (!open) openList();
+          else setActive(picker.active + 1);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (!open) openList();
+          else setActive(picker.active - 1);
+          break;
+        case 'Home':
+        case 'End':
+          e.preventDefault();
+          openList();
+          setActive(e.key === 'Home' ? 0 : picker.courses.length - 1);
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (open) selectCourse(picker.active);
+          else openList();
+          break;
+        case 'Escape':
+          if (open) { e.preventDefault(); closeList(); }
+          break;
+        case 'Tab':
+          closeList();
+          break;
+        default:
+          if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            openList();
+            typeAhead(e.key);
+          }
+      }
+    });
+
+    picker.list.addEventListener('mousedown', e => e.preventDefault());
+    document.addEventListener('pointerdown', e => { if (!e.target.closest('.picker')) closeList(); });
+    window.addEventListener('resize', () => { if (isOpen()) fitList(); });
+
+    async function loadCourses() {
+      try {
+        const resp = await fetch(COURSES_URL);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const [headers = [], ...rows] = parseQuotedCSV(await resp.text());
+        const keys = headers.map(h => h.trim());
+        picker.courses = rows
+          .map(row => Object.fromEntries(keys.map((k, i) => [k, (row[i] || '').trim()])))
+          .filter(row => row.cursoKey)
+          .map((row, i) => ({
+            key:   row.cursoKey,
+            label: row.nombre || row.cursoKey,
+            tipo:  row.tipo,
+            month: courseMonth(row.realizado),
+            index: i,
+          }));
+        // Most recent first; courses without a date keep the sheet order at the end.
+        picker.courses.sort((a, b) =>
+          (b.month ? b.month.order : -1) - (a.month ? a.month.order : -1) || a.index - b.index);
+        if (!picker.courses.length) throw new Error('Sin cursos');
+        renderOptions();
+        picker.trigger.removeAttribute('aria-disabled');
+        picker.trigger.tabIndex = 0;
+        setPlaceholder('Selecciona el curso o diplomado');
+      } catch (err) {
+        console.error(err);
+        setPlaceholder('No se pudieron cargar los cursos');
+        show('msgCarga');
+      }
+    }
+
+    function hideMessages() {
+      ['msgGenerando', 'msgNoEncontrado', 'msgInactivo', 'msgSinCurso', 'msgError']
+        .forEach(id => document.getElementById(id).classList.add('hidden'));
+    }
+
+    function show(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function savePdf(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }
+
+    async function search() {
+      hideMessages();
+      const input     = document.getElementById('documentoInput');
+      const course    = picker.selected >= 0 ? picker.courses[picker.selected] : null;
+      const documento = input.value.trim();
+      input.classList.remove('is-invalid');
+
+      if (!course) {
+        show('msgSinCurso');
+        picker.trigger.classList.add('is-invalid');
+        picker.trigger.focus();
+        return;
+      }
+      if (!documento) {
+        input.classList.add('is-invalid', 'shake');
+        setTimeout(() => input.classList.remove('shake'), 500);
+        input.focus();
+        return;
+      }
+
+      show('msgGenerando');
+      const btn = document.getElementById('btnBuscar');
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/certificado', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ cursoKey: course.key, documento }),
+        });
+        hideMessages();
+        if (resp.status === 404) { show('msgNoEncontrado'); return; }
+        if (resp.status === 403) { show('msgInactivo'); return; }
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        savePdf(await resp.blob(), `certificado_${documento.replace(/[^\w-]/g, '')}.pdf`);
+      } catch (err) {
+        console.error(err);
+        hideMessages();
+        show('msgError');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function toggleHelp() {
+      const btn   = document.getElementById('btnAyuda');
+      const panel = document.getElementById('ayuda');
+      const open  = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+    }
+
+    // Inside the TYPO3 page the iframe grows to this height, so the help panel never adds an inner scrollbar.
+    function reportHeight() {
+      if (window.self === window.top || !('ResizeObserver' in window)) return;
+      const main = document.querySelector('.cert');
+      new ResizeObserver(() => {
+        const style  = getComputedStyle(document.body);
+        const height = main.getBoundingClientRect().height
+          + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        window.parent.postMessage({ type: 'fcen-certificados:altura', height: Math.ceil(height) }, '*');
+      }).observe(main);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCourses();
+      reportHeight();
+      document.getElementById('btnBuscar').addEventListener('click', search);
+      document.getElementById('documentoInput')
+        .addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+      document.getElementById('btnAyuda').addEventListener('click', toggleHelp);
+    });
+  </script>
+</body>
+</html>

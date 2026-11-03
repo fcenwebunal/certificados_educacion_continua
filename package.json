@@ -1,0 +1,13 @@
+{
+  "name": "certificados-educacion-continua",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Certificados de Educación Continua FCEN, UNAL Manizales",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "pdfkit": "^0.15.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
